@@ -267,18 +267,18 @@ def challenger(m0, m1, t, n, p, q):
     b = ZZ.random_element(2)
     mb = m0 if b == 0 else m1
     shamir_shares = shamir_share(mb, t, n, p)
-    chosen_shamir_shares =  [shamir_shares[i] for i in range(1,t+1)]
+    chosen_shamir_shares =  [shamir_shares[i] for i in range(t)]
     shares = shamir_to_additive_shares(chosen_shamir_shares,p)
     #shares = additive_share(mb, n, p)
     y = leakage_vector(shares, p, q)
     return b, shares, y
 
-def distinguisher(y, q, n):
+def distinguisher(y, q, t):
     """
     Your distinguisher:
       - compute v = sum(y_i) mod q
       - take centered representative modulo q
-      - guess 0 if |v| < n/2, else guess 1
+      - guess 0 if |v| < t/2, else guess 1
     """
     v = Integer(sum(y)) % q
     #print("value v after modulo q: ",v)
@@ -295,7 +295,7 @@ def one_trial(m0, m1, t, n, p, q, verbose=False):
     Returns True iff the distinguisher guessed correctly.
     """
     b, shares, y = challenger(m0, m1, t, n, p, q)
-    guess = distinguisher(y, q, n)
+    guess = distinguisher(y, q, t)
     
     if verbose:
         print(f"b      = {b}")
