@@ -2,7 +2,7 @@
 # Date: 2026-04-14
 #
 # Description:
-#   SageMath implementation of distinguishing attacks on (additive and) Shamir secret sharing.
+#   SageMath implementation of distinguishing attacks on Shamir's and additive secret sharing.
 #
 # Acknowledgement:
 #   Parts of this code were developed with assistance from ChatGPT (OpenAI).
@@ -253,7 +253,21 @@ def challenge_messages(p):
     
     return m0, m1
     
-def challenger(m0, m1, t, n, p, q):
+def distinguisher(y, q, t):
+    """
+    Your distinguisher:
+      - compute v = sum(y_i) mod q
+      - take centered representative modulo q
+      - guess 0 if |v| < t/2, else guess 1
+    """
+    v = Integer(sum(y)) % q
+    dist_to_0 = min(v, q - v)
+    if dist_to_0 < QQ(t)/2:
+        return 0
+    else:
+        return 1
+            
+def shamir_challenger(m0, m1, t, n, p, q):
     """
     Security game challenger:
       - samples b in {0,1}
@@ -269,32 +283,32 @@ def challenger(m0, m1, t, n, p, q):
     shamir_shares = shamir_share(mb, t, n, p)
     chosen_shamir_shares =  [shamir_shares[i] for i in range(t)]
     shares = shamir_to_additive_shares(chosen_shamir_shares,p)
-    #shares = additive_share(mb, n, p)
     y = leakage_vector(shares, p, q)
     return b, shares, y
 
-def distinguisher(y, q, t):
+def additive_challenger(m0, m1, n, p, q):
     """
-    Your distinguisher:
-      - compute v = sum(y_i) mod q
-      - take centered representative modulo q
-      - guess 0 if |v| < t/2, else guess 1
-    """
-    v = Integer(sum(y)) % q
-    #print("value v after modulo q: ",v)
-    dist_to_0 = min(v, q - v)
-    #print("distance to 0: ",dist_to_0)
-    if dist_to_0 < QQ(t)/2:
-        return 0
-    else:
-        return 1
+    Security game challenger:
+      - samples b in {0,1}
+      - secret shares m_b
+      - leaks rounded shares
 
-def one_trial(m0, m1, t, n, p, q, verbose=False):
+    Returns:
+      (b, shares, y)
+    where y is the leakage vector.
+    """
+    b = ZZ.random_element(2)
+    mb = m0 if b == 0 else m1
+    shares = additive_share(mb, n, p)
+    y = leakage_vector(shares, p, q)
+    return b, shares, y
+    
+def shamir_one_trial(m0, m1, t, n, p, q, verbose=False):
     """
     Run one challenge/distinguisher trial.
     Returns True iff the distinguisher guessed correctly.
     """
-    b, shares, y = challenger(m0, m1, t, n, p, q)
+    b, shares, y = shamir_challenger(m0, m1, t, n, p, q)
     guess = distinguisher(y, q, t)
     
     if verbose:
@@ -308,14 +322,33 @@ def one_trial(m0, m1, t, n, p, q, verbose=False):
     
     return guess == b
 
-def experiment(bits, t, n, q, trials=1000, verbose=False):
+def additive_one_trial(m0, m1, n, p, q, verbose=False):
+    """
+    Run one challenge/distinguisher trial.
+    Returns True iff the distinguisher guessed correctly.
+    """
+    b, shares, y = additive_challenger(m0, m1, n, p, q)
+    guess = distinguisher(y, q, n)
+    
+    if verbose:
+        print(f"b      = {b}")
+        print(f"shares = {shares}")
+        print(f"y      = {y}")
+        print(f"sum(y) = {sum(y)}")
+        print(f"v mod q (centered) = {centered_rep(sum(y), q)}")
+        print(f"guess  = {guess}")
+        print(f"correct? {guess == b}")
+    
+    return guess == b
+
+def shamir_experiment(bits, t, n, q, trials=1000, verbose=False):
     """
     Sample a random prime p of the given bit size, print it, and run the attack.
 
     INPUT:
         - bits    : bit length of p
         - t       : threshold number
-        - n       : number of additive shares
+        - n       : number of shares
         - q       : rounding modulus
         - trials  : number of trials
         - verbose : if True, print each trial too
@@ -323,6 +356,13 @@ def experiment(bits, t, n, q, trials=1000, verbose=False):
     OUTPUT:
         dictionary containing p, p mod 4, messages, and success rate
     """
+    
+    print("")
+    print("===================================================")
+    print("Starting a new experiment attacking Shamir's scheme")
+    print("===================================================")
+    print("")
+
     p = random_prime_of_bitlength(bits)
     m0, m1 = challenge_messages(p)
 
@@ -337,7 +377,7 @@ def experiment(bits, t, n, q, trials=1000, verbose=False):
 
     wins = 0
     for _ in range(trials):
-        if one_trial(m0, m1, t, n, p, q, verbose=False):
+        if shamir_one_trial(m0, m1, t, n, p, q, verbose=False):
             wins += 1
 
     success_rate = QQ(wins) / QQ(trials)
@@ -355,54 +395,107 @@ def experiment(bits, t, n, q, trials=1000, verbose=False):
         "success_rate": success_rate
     }
 
-print("")
-print("=============")
-print("Experiment 1")
-print("=============")
-print("")
+def additive_experiment(bits, n, q, trials=1000, verbose=False):
+    """
+    Sample a random prime p of the given bit size, print it, and run the attack.
+
+    INPUT:
+        - bits    : bit length of p
+        - n       : number of additive shares
+        - q       : rounding modulus
+        - trials  : number of trials
+        - verbose : if True, print each trial too
+
+    OUTPUT:
+        dictionary containing p, p mod 4, messages, and success rate
+    """
+    
+    print("")
+    print("===================================================")
+    print("Starting a new experiment attacking additive scheme")
+    print("===================================================")
+    print("")
+
+    p = random_prime_of_bitlength(bits)
+    m0, m1 = challenge_messages(p)
+
+    print("Selected prime p =", p)
+    print("Bit length       =", p.nbits())
+    print("m0               =", m0)
+    print("m1               =", m1)
+    print("q                =", q)
+    print("n                =", n)
+    print("trials           =", trials)
+
+    wins = 0
+    for _ in range(trials):
+        if additive_one_trial(m0, m1, n, p, q, verbose=False):
+            wins += 1
+
+    success_rate = QQ(wins) / QQ(trials)
+
+    print("Success rate     =", success_rate)
+
+    return {
+        "p": p,
+        "p_mod_4": p % 4,
+        "m0": m0,
+        "m1": m1,
+        "q": q,
+        "n": n,
+        "trials": trials,
+        "success_rate": success_rate
+    }
+# attacks on Shamir's scheme
+# always fulfilling the condition q > 4t
 
 bits = 10
 q = 17
 t = 4
 n = 50
 
-experiment(bits, t, n, q, trials=1000, verbose=False)
+shamir_experiment(bits, t, n, q, trials=1000, verbose=False)
 
-print("")
-print("=============")
-print("Experiment 2")
-print("=============")
-print("")
-
-bits = 20
-q = 17
-t = 4
-n = 50
-
-experiment(bits, t, n, q, trials=1000, verbose=False)
-
-print("")
-print("=============")
-print("Experiment 3")
-print("=============")
-print("")
+#demonstrating that higher p (from 10 to 40 bits) does not change the success rate 
 
 bits = 40
 q = 17
 t = 4
 n = 50
 
-experiment(bits, t, n, q, trials=1000, verbose=False)
+shamir_experiment(bits, t, n, q, trials=1000, verbose=False)
 
-print("")
-print("=============")
-print("Experiment 4")
-print("=============")
-print("")
+#demonstrating that higher n (from 50 to 200) does not change the success rate 
 
 bits = 40
 q = 17
 t = 4
-n = 100
+n = 200
 
-experiment(bits, t, n, q, trials=1000, verbose=False)
+shamir_experiment(bits, t, n, q, trials=1000, verbose=False)
+
+# attacks on additive scheme
+# always fulfilling the condition q > 4n
+
+bits = 10
+q = 17
+n = 4
+
+additive_experiment(bits, n, q, trials=1000, verbose=False)
+
+#demonstrating that higher p (from 10 to 40 bits) does not change the success rate 
+
+bits = 40
+q = 17
+n = 4
+
+additive_experiment(bits, n, q, trials=1000, verbose=False)
+
+#demonstrating that higher n (from 4 to 20) requires a higher q. 
+
+bits = 40
+q = 81
+n = 20
+
+additive_experiment(bits, n, q, trials=1000, verbose=False)
+
