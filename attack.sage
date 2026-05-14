@@ -22,33 +22,33 @@ def round_away_from_zero(x):
         
 def centered_rep(x, p):
     """
-    Return the centered representative of x in F_p, viewed in
-    {-(p-1)//2, ..., (p-1)//2}.
+    Return the centered representative of x modulo p.
 
-    INPUT:
-        - x : element of GF(p) or integer
-        - p : odd prime
+    For odd p:
+        {-(p-1)//2, ..., (p-1)//2}
 
-    OUTPUT:
-        Integer representative of x in the centered interval.
+    For even p:
+        {-p//2 + 1, ..., p//2}
+
+    The tie class p/2 is represented by +p/2.
     """
-    if p % 2 == 0:
-        raise ValueError("p must be odd")
+    if p <= 0:
+        raise ValueError("p must be positive")
 
     a = Integer(x) % p
-    half = (p - 1) // 2
+    half = p // 2
 
     if a <= half:
         return a
     else:
-        return a - p   
+        return a - p 
         
 def scaled_rounding(x, p, q):
     """
     Rounding map from F_p to Z:
       1. take centered representative in {-(p-1)//2, ..., (p-1)//2}
       2. scale by q/p
-      3. round to nearest integer
+      3. round to nearest integer (with ties (.5) going away from 0.)
 
     INPUT:
         - x : element of GF(p) or integer
@@ -243,7 +243,7 @@ def challenge_messages(p):
 
     For odd prime p:
       - m0 = 0
-      - m1 = (p-1)/2 
+      - m1 = (p-1)//2 
     """
     if p % 2 == 0:
         raise ValueError("p must be odd")
@@ -257,12 +257,14 @@ def distinguisher(y, q, t):
     """
     Your distinguisher:
       - compute v = sum(y_i) mod q
-      - take centered representative modulo q
+      - compute the distance of v to 0 modulo q
       - guess 0 if |v| < t/2, else guess 1
     """
     v = Integer(sum(y)) % q
-    dist_to_0 = min(v, q - v)
-    if dist_to_0 < QQ(t)/2:
+    v_centered = centered_rep(v,q)
+    if abs(v_centered) < QQ(t)/2:
+    #dist_to_0 = min(v, q - v)
+    #if dist_to_0 < QQ(t)/2:
         return 0
     else:
         return 1
@@ -281,8 +283,8 @@ def shamir_challenger(m0, m1, t, n, p, q):
     b = ZZ.random_element(2)
     mb = m0 if b == 0 else m1
     shamir_shares = shamir_share(mb, t, n, p)
-    chosen_shamir_shares =  [shamir_shares[i] for i in range(t)]
-    shares = shamir_to_additive_shares(chosen_shamir_shares,p)
+    reconstruction_shamir_shares =  [shamir_shares[i] for i in range(t)]
+    shares = shamir_to_additive_shares(reconstruction_shamir_shares,p)
     y = leakage_vector(shares, p, q)
     return b, shares, y
 
@@ -456,7 +458,7 @@ n = 50
 
 shamir_experiment(bits, t, n, q, trials=1000, verbose=False)
 
-#demonstrating that higher p (from 10 to 40 bits) does not change the success rate 
+#empirically demonstrating that higher p (from 10 to 40 bits) does not change the success rate 
 
 bits = 40
 q = 17
@@ -465,7 +467,7 @@ n = 50
 
 shamir_experiment(bits, t, n, q, trials=1000, verbose=False)
 
-#demonstrating that higher n (from 50 to 200) does not change the success rate 
+#empirically demonstrating that higher n (from 50 to 200) does not change the success rate 
 
 bits = 40
 q = 17
@@ -483,7 +485,7 @@ n = 4
 
 additive_experiment(bits, n, q, trials=1000, verbose=False)
 
-#demonstrating that higher p (from 10 to 40 bits) does not change the success rate 
+# empirically demonstrating that higher p (from 10 to 40 bits) does not change the success rate 
 
 bits = 40
 q = 17
@@ -491,7 +493,7 @@ n = 4
 
 additive_experiment(bits, n, q, trials=1000, verbose=False)
 
-#demonstrating that higher n (from 4 to 20) requires a higher q. 
+# empirically demonstrating that higher n (from 4 to 20) requires a higher q. 
 
 bits = 40
 q = 81
