@@ -8,4 +8,4 @@ Please make sure that your Sage version is up to date. We tested it on version 9
 
     ..: load("attack.sage")
 
-[BM26] Katharina Boudgoust, Mark Simkin. Scale, Round, Break: Simple Leakage Attacks on Secret Sharing Schemes
+[BM26] Katharina Boudgoust, Mark Simkin. Scale, Round, Break: Simple Leakage Attacks on Secret Sharing Schemes https://eprint.iacr.org/2026/833
