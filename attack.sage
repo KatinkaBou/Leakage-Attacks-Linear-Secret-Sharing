@@ -1,11 +1,8 @@
-# Author: Katharina Boudgoust
-# Date: 2026-04-14
+# Author: Anonymous Author
+# Date: 2026-05-14
 #
 # Description:
 #   SageMath implementation of distinguishing attacks on Shamir's and additive secret sharing.
-#
-# Acknowledgement:
-#   Parts of this code were developed with assistance from ChatGPT (OpenAI).
 
 """
 ==== HELPER FUNCTIONS ====
